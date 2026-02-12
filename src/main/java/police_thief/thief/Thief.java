@@ -15,7 +15,6 @@ public class Thief implements Runnable{
 	private int x;
 	private int y;
 	
-	private final Object positionLock = new Object();
 	private Random random;
 	
 	// 생성자
@@ -65,7 +64,7 @@ public class Thief implements Runnable{
 					int amount = random.nextInt(9001) +1000;
 					int stolen = vault.steal(amount);
 					if (stolen > 0) {
-						synchronized (positionLock) {
+						synchronized (this) {
 							stolenAmount += stolen;
 						}
 						System.out.println("Thief-" + id + "이(가) " + stolen + "원을 훔쳤습니다!");
@@ -81,8 +80,7 @@ public class Thief implements Runnable{
 		}
 	}
 	
-	private void move() {
-		synchronized (positionLock) {
+	private synchronized void move() {
 			switch(this.state) {
 			// 처음에는 금고 위치 파악 후 최단거리로 이동
 			case MOVING_TO_VAULT:
@@ -100,7 +98,7 @@ public class Thief implements Runnable{
 			case ARRESTED:
 				break;
 			}
-		}
+		
 		
 	}
 	
@@ -125,34 +123,31 @@ public class Thief implements Runnable{
 	
 	
 	public void arrest() { // 체포 여부
-		this.state = state.ARRESTED;
+		this.state = ThiefState.ARRESTED;
 		System.out.println("Thief-" + id + " 체포되었습니다.");
 	}
 
 	
-	public int[] getPosition() { // 위치 획득
+	public synchronized int[] getPosition() { // 위치 획득
 		// 각 도둑객체 위치 보호
-		synchronized(positionLock) { // 락이 된 순간 x,y 복사
+		
 			return new int[] {x,y}; // 락 해제
-		}
+		
 	}
 	
 	// 개별 좌표 읽기
-	public int getX() {
-		synchronized (positionLock) {
+	public synchronized int getX() {
 			return x;
-		}
+		
 	}
-	public int getY() {
-		synchronized (positionLock) {
+	public synchronized int getY() {
 			return y;
-		}
+		
 	}
 	// 훔친 가격 인스턴스
-	public int getStolenAmount() {
-		synchronized (positionLock) {
+	public synchronized int getStolenAmount() {
 	        return stolenAmount;
-	    }
+	    
 	}
 	// 도둑 id값 반환
 	public int getId() {
