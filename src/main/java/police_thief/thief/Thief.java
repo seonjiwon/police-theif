@@ -10,6 +10,7 @@ public class Thief implements Runnable{
 	private Vault vault; // 금고
 	private int stolenAmount; // 훔친 가격
 	private volatile boolean caught = false;
+	private volatile ThiefState state; // 상태변수(훔쳤는지 여부)
 	
 	// x, y 좌표
 	private int x;
@@ -24,12 +25,28 @@ public class Thief implements Runnable{
 		this.vault = vault;
 		this.stolenAmount = 0;
 		this.random = new Random();
+		// 처음에는 금고로 이동하는 상태로 시작
+		this.state = ThiefState.MOVING_TO_VAULT;
 		
 		// 시작 위치 랜덤으로 지정
 		this.x = random.nextInt(21);
 		this.y = random.nextInt(21);
 	}
 	
+	// 도둑의 상태 정의하는 열거형
+	public enum ThiefState {
+		MOVING_TO_VAULT("금고로 이동 중"),
+		ACTIVE("활동 중(랜덤 이동)"),
+		ARRESTED("체포됨");
+		
+		private final String description;
+		ThiefState(String description) {
+			this.description = description;
+		}
+		public String getDescription() {
+			return description;
+		}
+	}
 	
 	@Override
 	public void run() {
@@ -46,7 +63,7 @@ public class Thief implements Runnable{
 				if(currentX == vault.getX()
 					&& currentY == vault.getY()) {
 					// 훔칠 가격(100 ~ 1000)
-					int amount = random.nextInt(901) +100;
+					int amount = random.nextInt(9001) +1000;
 					int stolen = vault.steal(amount);
 					if (stolen > 0) {
 						synchronized (positionLock) {
@@ -66,37 +83,58 @@ public class Thief implements Runnable{
 	}
 	
 	private void move() {
-		// 도둑 랜덤 이동
-		int direction = random.nextInt(4);
-		
-		// 값 객체 락
-		synchronized(positionLock) {
-			switch(direction) {
-			case 0: // 위로 이동
-				if (y >0) y--;
+		synchronized (positionLock) {
+			switch(this.state) {
+			// 처음에는 금고 위치 파악 후 최단거리로 이동
+			case MOVING_TO_VAULT:
+				moveToTarget(vault.getX(), vault.getY());
+				
+				if(x == vault.getX() 
+					&& y == vault.getY()) {
+					this.state = ThiefState.ACTIVE;
+				}
 				break;
-			case 1: // 아래 이동
-				if(y<20) y++;
+			// 금고 도착 이후에는 랜덤하게 이동
+			case ACTIVE:
+				moveRandom();
 				break;
-			case 2: // 왼쪽 이동
-				if (x>0) x--;
-				break;
-			case 3: // 오른쪽 이동
-				if(x<20) x++;
+			case ARRESTED:
 				break;
 			}
 		}
+		
 	}
+	
+	// 금고로 이동시키기(유도)
+	private void moveToTarget(int targetX, int targetY) {
+		if(x <targetX) x++;
+		else if (x > targetX) x--;
+        else if (y < targetY) y++;
+        else if (y > targetY) y--;
+    }
+	
+	// 랜덤으로 이동시키기(훔친 이후 적용)
+	private void moveRandom() {
+		int direction = random.nextInt(4);
+        switch (direction) {
+            case 0: if (y > 0) y--; break;
+            case 1: if (y < 20) y++; break;
+            case 2: if (x > 0) x--; break;
+            case 3: if (x < 20) x++; break;
+        }
+	}
+	
 	
 	public void arrest() { // 체포 여부
 		caught = true;
+		this.state = state.ARRESTED;
 		System.out.println("Thief-" + id + " 체포되었습니다.");
 	}
 	
 	/// getter 선언
-	public boolean isCaught() { // 잡힌 여부
-		return caught;
-	}
+//	public boolean isCaught() { // 잡힌 여부
+//		return caught;
+//	}
 	
 	public int[] getPosition() { // 위치 획득
 		// 각 도둑객체 위치 보호
@@ -125,6 +163,10 @@ public class Thief implements Runnable{
 	// 도둑 id값 반환
 	public int getId() {
 		return id;
+	}
+	
+	public ThiefState getState() {
+		return state;
 	}
 	
 }
